@@ -16,9 +16,22 @@ char getchUSART0(void)  {
 
 char putchUSART0 (char tx) {
   while(!(UCSR0A & (1 << UDRE0)));  // wait for wait for empty transmit buffer
+  UDR0 = tx;
 }
 
 int main()  {
+  
   uart1_Init(MYUBRRF);
+  
+  while(1) {
+    putchUSART0(getchUSART0()); // transmit what is received
+    _delay_ms(1000);
+  }
+
+  while(*ptr)  {
+    putchUSART0(*ptr);
+    ptr+ +;
+  }
 
 }
+
