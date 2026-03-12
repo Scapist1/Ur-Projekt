@@ -1,3 +1,10 @@
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdio.h>       // Nødvendig for sprintf 
+#include "I2C.h"
+#include "ssd1306.h"
+
 #define BAUD 115200
 #define MYUBRRF F_CPU/8/BAUD -1 //full duplex
 
@@ -20,17 +27,28 @@ char putchUSART0 (char tx) {
 }
 
 int main()  {
+  char name[10];
+
+
+  // Initialisering
+  I2C_Init();
+  InitializeDisplay();
+  clear_display(); 
+
+
   
   uart1_Init(MYUBRRF);
   
+  fgets(name, sizeof(name), stdin);
+
+  while(*name)  {
+    putchUSART0(*name);
+    name++; // forskyder addressen den læser til
+  }
+
   while(1) {
     putchUSART0(getchUSART0()); // transmit what is received
     _delay_ms(1000);
-  }
-
-  while(*ptr)  {
-    putchUSART0(*ptr);
-    ptr+ +;
   }
 
 }
