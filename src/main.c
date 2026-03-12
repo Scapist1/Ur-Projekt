@@ -20,5 +20,5 @@ char putchUSART0 (char tx) {
 
 int main()  {
   uart1_Init(MYUBRRF);
-//tissemand
+
 }
