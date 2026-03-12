@@ -1,0 +1,50 @@
+Ur projekt noter
+
+Designkrav
+- design USART driver
+   - Setup af baudrate: 19200 bits/sec
+   - kommuniker 1 start bit, 8 databit og 1 stop bit
+   - Full duplex (betyder kommunikation fungere i begge retninger samtidigt)
+   - skal kunne sende og modtage bytes mellem to usb-porte
+   - sende en streng af ASCII karakterer fra og til computer vha. USB til seriel forbindelse
+   - ekstern interrupt?
+- design ur
+   - skal styres fra terminal
+   - skal kunne resettes fra terminal
+   - skal kunne indstille tid fra terminal
+   - skal vise tid 00:00:00 i terminal
+   - skal kunne aktivere alarm til bestemt tid fra Arduino
+
+Arbejdsplan
+- Del 1: UART Driver udarbejdning
+   - Skriv C-kode for funktionerne med hjælp fra formularen i afsnit 8
+   - Test i simulator at bittene er sat rigtigt ift. UART forbindelse
+   - Inkluder OLED-display kode og upload til Arduino
+   - Test at Arduino modtager ved at vise ASCII på OLED display
+   - Test at PC modtager tilbage i terminal
+   - Tilføj funktion der kan sende null-termineret streng af karakterer
+        - Transmit funktion 1 karakter / byte af gangen
+    - Tilføje funktion: I slutningen af en streng kommer der en \n eller \r terminering, den skal kunne stoppe while loopet og returnere med strengen
+    - Opret UART.c og UART.h
+    - Tag billede til journalen
+
+- Del 2: Uret
+
+
+- Del 3: Indbyg interrupt, så arduino kan bruge energi på andet og ikke hele tiden fokusere på input
+
+Udarbejdning af dokumentationsrapport
+- Forside
+- Indholdsfortegnelse
+- Specifikation for uret, så hvad skal det kunne (del 1 og del 2)
+- Beskrivelse af UART
+    - Hvordan er seriel kommunikation implementeret i UART (timing diagram kan bruges til at forklare)
+    - Hvilke registre skal initialiseres i UART for at kommunikere
+    - Hvilke bits skal sættes for at kommunikere
+- C-moduldiagram med forklaring
+- Tabel med forklaring til alle funktioner i UART-modulet
+- Interrupt-diagrammer med forklaring
+- Flowchart eller tilstandsdiagram for main() med forklaring
+- Test er viser, at systemet virker (tag billeder og indsæt med forklaring)
+- Konklusion
+

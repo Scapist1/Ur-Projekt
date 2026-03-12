@@ -3,34 +3,11 @@
 #include <stdio.h>
 #include "I2C.h"
 #include "ssd1306.h"
+#include "UART.h"
 
+#define F_CPU 16000000UL
 #define BAUD 115200
 #define MYUBRRF (F_CPU / 8 / BAUD - 1)
-
-void uart0_Init(unsigned int ubrr) {
-    UCSR0A = (1 << U2X0); // Double speed mode
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0); // Enable RX and TX
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); // 8-bit data format
-    UBRR0H = (unsigned char)(ubrr >> 8);
-    UBRR0L = (unsigned char)ubrr;
-}
-
-void putchUSART0(char tx) {
-    while (!(UCSR0A & (1 << UDRE0))); // Wait for empty buffer
-    UDR0 = tx;
-}
-
-char getchUSART0(void) {
-    while (!(UCSR0A & (1 << RXC0))); // Wait for data
-    return UDR0;
-}
-
-// Function to send a whole string back to Serial Monitor
-void printString(const char* s) {
-    while (*s) {
-        putchUSART0(*s++);
-    }
-}
 
 int main(void) {
     char buffer[17];    // 16 chars + null terminator
@@ -67,7 +44,7 @@ int main(void) {
         }
 
         // gemmer c i buffer array, hvis det opfylder specifikke kriterier
-        else if (c >= 32 && c <= 126) { // godtager kun ASCII tegn som kan vises på display
+        else if (pos < 16 && c >= 32 && c <= 126) { // godtager kun ASCII tegn som kan vises på display og begrænser pos til højest 15 tegn så displayet ikke flyder over med tegn
             buffer[pos++] = c;  // gemmer 8-bit char c i buffer array og tilføjer 1 til int pos tæller
             putchUSART0(c); // ekkoer tegn tilbage til serial monitoren, så vi kan se hvad vi skriver i den
         }
