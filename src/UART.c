@@ -17,10 +17,3 @@ char getchUSART0(void) {
     while (!(UCSR0A & (1 << RXC0))); // Wait for data
     return UDR0;
 }
-
-// Function to send a whole string back to Serial Monitor
-void printString(const char* s) {
-    while (*s) {
-        putchUSART0(*s++);
-    }
-}

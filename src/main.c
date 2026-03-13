@@ -9,6 +9,16 @@
 #define BAUD 115200
 #define MYUBRRF (F_CPU / 8 / BAUD - 1)
 
+
+// Funktion til at sende streng til seriel monitor (printer guide besked i starten)
+void printString(const char* s) {
+    while (*s) {
+        putchUSART0(*s++);
+    }
+}
+
+
+
 int main(void) {
     char buffer[17];    // 16 chars + null terminator
     uint8_t pos = 0;
@@ -19,7 +29,7 @@ int main(void) {
 
     uart0_Init(MYUBRRF);
     
-    printString("Systemet er klar: Skriv og print string\r\n");
+    printString("Guide: Tryk på arduino knap for at indstille tiden i seriel monitoren\r\n");
 
     while (1) {
         char c = getchUSART0(); // get char via UART
