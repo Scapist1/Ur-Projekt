@@ -18,7 +18,7 @@ uint8_t pos = 0;
 volatile uint8_t ss = 0, mm = 0, hh = 0; // volatile da de ændres i ISR
 char pre_c = 0; // Gemmer forrige tegn for at teste for \r\n
 
-// Variabler til den "gemte" tid, som venter på at blive aktiveret
+// Variabler til den "nye gemte" tid, som venter på at blive aktiveret
 uint8_t ny_hh = 0, ny_mm = 0, ny_ss = 0;
 volatile uint8_t knap_trykket = 0; 
 
