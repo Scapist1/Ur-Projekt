@@ -15,16 +15,23 @@
 // Globale variabler
 char buffer[17];    
 uint8_t pos = 0;
-uint8_t sekunder = 0, minutter = 0, timer = 0;
+volatile uint8_t ss = 0, mm = 0, hh = 0; // volatile da de ændres i ISR
 char pre_c = 0; // Gemmer forrige tegn for at teste for \r\n
 
 // Variabler til den "gemte" tid, som venter på at blive aktiveret
-uint8_t gemt_h = 0, gemt_m = 0, gemt_s = 0;
+uint8_t ny_hh = 0, ny_mm = 0, ny_ss = 0;
 volatile uint8_t knap_trykket = 0; 
 
 // Interrupt Service Routine for knappen på Pin 2 (INT4)
 ISR(INT4_vect) {
-    knap_trykket = 1; // Signalér at timeren skal initialiseres til den gemte tid
+    knap_trykket = 1; // Signalér at hhen skal initialiseres til den gemte tid
+}
+
+// NY PRÆCIS TIMER: Denne køre præcis hvert sekund via hardware
+ISR(TIMER1_COMPA_vect) {
+    ss++;
+    if (ss >= 60) { ss = 0; mm++; }
+    if (mm >= 60) { mm = 0; hh++; }
 }
 
 void Init() {
@@ -44,12 +51,21 @@ void Init() {
     // Aktiver External Interrupt Request 4
     EIMSK |= (1 << INT4);
 
+    /* Hardware Timer 1 indstillinger (1 sekund) */
+    TCCR1A = 0; 
+    TCCR1B = 0;
+    TCNT1  = 0;
+    OCR1A = 15624;            // 16MHz / (1024 * 1Hz) - 1
+    TCCR1B |= (1 << WGM12);   // CTC mode
+    TCCR1B |= (1 << CS12) | (1 << CS10); // 1024 prescaler
+    TIMSK1 |= (1 << OCIE1A);  // Aktiver timer interrupt
+
     sei(); // Aktiver interrupts globalt
 
     // Display info
     sendStrXY("Ur Projekt", 0, 3);
-    sendStrXY("ny tid:", 2, 0);
-    sendStrXY("   tid:", 4, 0);
+    sendStrXY("ny tid: hh:mm:ss", 2, 0);
+    sendStrXY("   tid: 00:00:00", 4, 0);
     
 }
 
@@ -59,7 +75,7 @@ void printString(const char* s) {
     }
 }
 
-void tjekUART() {
+void UART() {
     if (UCSR0A & (1 << RXC0)) {
         char c = UDR0;
 
@@ -70,9 +86,14 @@ void tjekUART() {
             if (sscanf(buffer, "%d:%d:%d", &h, &m, &s) == 3) {
                 if (h < 24 && m < 60 && s < 60) {
                     // Vi gemmer tiden uden at skifte tekst i toppen
-                    gemt_h = h;
-                    gemt_m = m;
-                    gemt_s = s;
+                    ny_hh = h;
+                    ny_mm = m;
+                    ny_ss = s;
+
+                    // NY OPDATERING: Opdater kun den gemte tid på OLED, når den faktisk modtages
+                    char oled_nytid[20];
+                    sprintf(oled_nytid, "%02d:%02d:%02d", ny_hh, ny_mm, ny_ss);
+                    sendStrXY(oled_nytid, 2, 8);
                 }
             } 
             // Alle printString og clear_display herfra er fjernet for at holde layoutet statisk
@@ -92,59 +113,51 @@ void tjekUART() {
     }
 }
 
-void opdaterUr() {
-    static unsigned long sidste_tik = 0;
+void ur() {
+    // Vi gemmer hvad ss var sidste gang, så vi ved hvornår det ændrer sig
+    static uint8_t sidste_ss = 255; 
     
-    // Hvis knappen er trykket, initialiserer vi timeren til den gemte tid
+    // Hvis knappen er trykket, initialiserer vi hhen til den gemte tid
     if (knap_trykket) {
-        timer = gemt_h;
-        minutter = gemt_m;
-        sekunder = gemt_s;
+        cli(); // Midlertidig stop for interrupts så tiden ikke ændrer sig mens vi skriver
+        hh = ny_hh;
+        mm = ny_mm;
+        ss = ny_ss;
+        sei(); 
         knap_trykket = 0; // Nulstil knap-flaget
     }
 
-    if (sidste_tik > 400000) { 
-        char vis_buffer[40];
-        char gemt_buffer[40];
+    // OPDATER KUN SKÆRMEN HVIS SEKUNDET HAR ÆNDRET SIG
+    if (ss != sidste_ss) { 
+        char tid_buffer[40];
+        char nytid_buffer[40];
         
-        // 1. Vis den nutidige timer i terminalen (Linje 2)
-        sprintf(vis_buffer, "\e[2;1H\e[K      tid: %02d:%02d:%02d", timer, minutter, sekunder);
-        printString(vis_buffer);
+        // 1. Vis den nutidige hh i terminalen (Linje 2)
+        sprintf(tid_buffer, "\e[3;1H\e[K      tid: %02d:%02d:%02d", hh, mm, ss);
+        printString(tid_buffer);
         
         // 2. Vis den gemte tid i terminalen (Linje 3)
-        sprintf(gemt_buffer, "\e[3;1H\e[K   ny tid: %02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
-        printString(gemt_buffer);
+        sprintf(nytid_buffer, "\e[2;1H\e[K   ny tid: %02d:%02d:%02d", ny_hh, ny_mm, ny_ss);
+        printString(nytid_buffer);
         
         // OLED opdatering:
-        // Vi viser den aktive tid øverst (Række 2)
-        sendStrXY(vis_buffer + 19, 4, 7); 
-        // Vi viser den gemte tid nederst (Række 5)
-        char oled_gemt[20];
-        sprintf(oled_gemt, "%02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
-        sendStrXY(oled_gemt, 2, 8);
+        // Vi viser kun den aktive tid her i loopet (Række 4)
+        sendStrXY(tid_buffer + 19, 4, 7); 
 
-        // Tæller den nuværende timer op
-        sekunder++;
-        if (sekunder >= 60) { sekunder = 0; minutter++; }
-        if (minutter >= 60) { minutter = 0; timer++; }
-        
-        sidste_tik = 0; 
+        sidste_ss = ss; // Opdater sidste_ss så vi ikke skriver til skærmen før næste sekund
     }
-    
-    sidste_tik++; 
 }
 
 int main(void) {
-    Init(); 
+    Init(); // initialisere alt! (I2C Display, UART, Knap)
     
-    printString("\e[2J\e[H"); // Ryd skærm og sæt markør i top
+    printString("\e[2J\e[H"); // Ryder monitor for gamle skriverier
     _delay_ms(10); 
     
-    // Denne tekst bliver nu stående fast øverst i monitoren
-    printString("Skriv ny tid HH:MM:SS i monitor. Tryk knap for at ændre til ny tid\r\n");
+    printString("Skriv ny tid hh:mm:ss i monitor. Tryk knap for at ændre til ny tid\r\n");  // guide tekst vist låst øverst i monitor
 
     while (1) {
-        tjekUART(); 
-        opdaterUr(); 
+        UART(); 
+        ur(); 
     }
 }
