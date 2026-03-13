@@ -45,6 +45,12 @@ void Init() {
     EIMSK |= (1 << INT4);
 
     sei(); // Aktiver interrupts globalt
+
+    // Display info
+    sendStrXY("Ur Projekt", 0, 3);
+    sendStrXY("ny tid:", 2, 0);
+    sendStrXY("   tid:", 4, 0);
+    
 }
 
 void printString(const char* s) {
@@ -63,15 +69,13 @@ void tjekUART() {
             int h, m, s;
             if (sscanf(buffer, "%d:%d:%d", &h, &m, &s) == 3) {
                 if (h < 24 && m < 60 && s < 60) {
+                    // Vi gemmer tiden uden at skifte tekst i toppen
                     gemt_h = h;
                     gemt_m = m;
                     gemt_s = s;
-                    printString("\e[1;1H\e[K[Tid gemt! Tryk paa knap for at aktivere]");
-                } else {
-                    printString("\e[1;1H\e[K[Fejl: Ugyldige tal!]");
                 }
             } 
-            // ELSE-blokken er fjernet herfra, så uret ikke bliver overskrevet af tekst
+            // Alle printString og clear_display herfra er fjernet for at holde layoutet statisk
             
             pos = 0; 
         } 
@@ -97,7 +101,6 @@ void opdaterUr() {
         minutter = gemt_m;
         sekunder = gemt_s;
         knap_trykket = 0; // Nulstil knap-flaget
-        printString("\e[1;1H\e[K[TIMER INITIALISERET!] Skriv ny tid for at koere i baggrunden");
     }
 
     if (sidste_tik > 400000) { 
@@ -105,20 +108,20 @@ void opdaterUr() {
         char gemt_buffer[40];
         
         // 1. Vis den nutidige timer i terminalen (Linje 2)
-        sprintf(vis_buffer, "\e[2;1H\e[K   Nu: %02d:%02d:%02d", timer, minutter, sekunder);
+        sprintf(vis_buffer, "\e[2;1H\e[K      tid: %02d:%02d:%02d", timer, minutter, sekunder);
         printString(vis_buffer);
         
         // 2. Vis den gemte tid i terminalen (Linje 3)
-        sprintf(gemt_buffer, "\e[3;1H\e[K   Gemt: %02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
+        sprintf(gemt_buffer, "\e[3;1H\e[K   ny tid: %02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
         printString(gemt_buffer);
         
         // OLED opdatering:
         // Vi viser den aktive tid øverst (Række 2)
-        sendStrXY(vis_buffer + 10, 2, 2); 
-        // Vi viser den gemte tid nederst (Række 5) som en "preview"
+        sendStrXY(vis_buffer + 19, 4, 7); 
+        // Vi viser den gemte tid nederst (Række 5)
         char oled_gemt[20];
-        sprintf(oled_gemt, "Gemt: %02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
-        sendStrXY(oled_gemt, 5, 1);
+        sprintf(oled_gemt, "%02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
+        sendStrXY(oled_gemt, 2, 8);
 
         // Tæller den nuværende timer op
         sekunder++;
@@ -134,10 +137,11 @@ void opdaterUr() {
 int main(void) {
     Init(); 
     
-    printString("\e[2J\e[H"); 
+    printString("\e[2J\e[H"); // Ryd skærm og sæt markør i top
     _delay_ms(10); 
     
-    printString("Indtast tid (HH:MM:SS) for at gemme den. Tryk knap for at aktivere.\r\n");
+    // Denne tekst bliver nu stående fast øverst i monitoren
+    printString("Skriv ny tid HH:MM:SS i monitor. Tryk knap for at ændre til ny tid\r\n");
 
     while (1) {
         tjekUART(); 
