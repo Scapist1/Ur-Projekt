@@ -6,7 +6,9 @@
 #include "ssd1306.h"
 #include "UART.h"
 
+#ifndef F_CPU
 #define F_CPU 16000000UL
+#endif
 #define BAUD 115200
 #define MYUBRRF (F_CPU / 8 / BAUD - 1)
 #define SET_INPUT(DDRx, BIT)  (DDRx &= ~(1 << BIT))
@@ -64,9 +66,8 @@ void Init() {
 
     // Display info
     sendStrXY("Ur Projekt", 0, 3);
-    sendStrXY("ny tid: hh:mm:ss", 2, 0);
+    sendStrXY("ny tid: 00:00:00", 2, 0);
     sendStrXY("   tid: 00:00:00", 4, 0);
-    
 }
 
 void printString(const char* s) {
@@ -79,24 +80,30 @@ void UART() {
     if (UCSR0A & (1 << RXC0)) {
         char c = UDR0;
 
+        // Tjek for Enter (\r\n)
         if (pre_c == '\r' && c == '\n') {
             buffer[pos] = '\0';
             
             int h, m, s;
             if (sscanf(buffer, "%d:%d:%d", &h, &m, &s) == 3) {
                 if (h < 24 && m < 60 && s < 60) {
-                    // Vi gemmer tiden uden at skifte tekst i toppen
-                    ny_hh = h;
-                    ny_mm = m;
-                    ny_ss = s;
+                    ny_hh = h; ny_mm = m; ny_ss = s;
 
-                    // NY OPDATERING: Opdater kun den gemte tid på OLED, når den faktisk modtages
+                    // Opdater OLED
                     char oled_nytid[20];
                     sprintf(oled_nytid, "%02d:%02d:%02d", ny_hh, ny_mm, ny_ss);
                     sendStrXY(oled_nytid, 2, 8);
                 }
             } 
-            // Alle printString og clear_display herfra er fjernet for at holde layoutet statisk
+            
+            // RYD MONITOREN OG TEGN LAYOUTET IGEN FOR AT UNDGÅ ROD
+            printString("\e[2;9H");
+            // printString("Skriv ny tid hh:mm:ss i monitor. Tryk knap for at aktivere.\r\n");
+            
+            char nytid[50];
+            sprintf(nytid, "%02d:%02d:%02d\r\n", ny_hh, ny_mm, ny_ss);
+            printString(nytid);
+            printString("\e[4;1H\e[J");     // sletter alt fra linje 4 og ned
             
             pos = 0; 
         } 
@@ -106,7 +113,7 @@ void UART() {
         }
         else if (pos < 16 && c >= 32 && c <= 126) {
             buffer[pos++] = c;
-            putchUSART0(c);
+            putchUSART0(c); // Echo tegnet direkte
         }
         
         pre_c = c;
@@ -114,47 +121,46 @@ void UART() {
 }
 
 void ur() {
-    // Vi gemmer hvad ss var sidste gang, så vi ved hvornår det ændrer sig
     static uint8_t sidste_ss = 255; 
     
     // Hvis knappen er trykket, initialiserer vi hhen til den gemte tid
     if (knap_trykket) {
-        cli(); // Midlertidig stop for interrupts så tiden ikke ændrer sig mens vi skriver
+        cli(); 
         hh = ny_hh;
         mm = ny_mm;
         ss = ny_ss;
         sei(); 
-        knap_trykket = 0; // Nulstil knap-flaget
+        knap_trykket = 0; 
     }
 
     // OPDATER KUN SKÆRMEN HVIS SEKUNDET HAR ÆNDRET SIG
     if (ss != sidste_ss) { 
         char tid_buffer[40];
-        char nytid_buffer[40];
         
-        // 1. Vis den nutidige hh i terminalen (Linje 2)
-        sprintf(tid_buffer, "\e[3;1H\e[K      tid: %02d:%02d:%02d", hh, mm, ss);
+        // 1. Gem markørposition, skriv tid, og hop tilbage
+        printString("\e[s"); // Gem markør (Save position)
+        sprintf(tid_buffer, "\e[3;9H\e[K%02d:%02d:%02d", hh, mm, ss);
         printString(tid_buffer);
-        
-        // 2. Vis den gemte tid i terminalen (Linje 3)
-        sprintf(nytid_buffer, "\e[2;1H\e[K   ny tid: %02d:%02d:%02d", ny_hh, ny_mm, ny_ss);
-        printString(nytid_buffer);
+        printString("\e[u"); // Gå tilbage til markør (Unsave/Restore position)
         
         // OLED opdatering:
-        // Vi viser kun den aktive tid her i loopet (Række 4)
-        sendStrXY(tid_buffer + 19, 4, 7); 
+        char oled_tid[20];
+        sprintf(oled_tid, "%02d:%02d:%02d", hh, mm, ss);
+        sendStrXY(oled_tid, 4, 8); 
 
-        sidste_ss = ss; // Opdater sidste_ss så vi ikke skriver til skærmen før næste sekund
+        sidste_ss = ss; 
     }
 }
 
 int main(void) {
-    Init(); // initialisere alt! (I2C Display, UART, Knap)
+    Init(); // initialisere alt!
     
-    printString("\e[2J\e[H"); // Ryder monitor for gamle skriverier
+    printString("\e[2J\e[H"); // Ryd monitor
     _delay_ms(10); 
     
-    printString("Skriv ny tid hh:mm:ss i monitor. Tryk knap for at ændre til ny tid\r\n");  // guide tekst vist låst øverst i monitor
+    printString("Skriv ny tid hh:mm:ss i monitor. Tryk knap for at aktivere.\r\n");
+    printString("ny tid: 00:00:00\r\n");
+    printString("   tid: 00:00:00\r\n");
 
     while (1) {
         UART(); 
