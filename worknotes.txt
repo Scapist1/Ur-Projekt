@@ -28,10 +28,18 @@ Arbejdsplan:
     - Opret UART.c og UART.h
     - Tag billede til journalen
 - Del 2: Uret (program der kan vise og styre tiden fra serial monitor)
-   - Tilføj funktion: Tekstbesked om, hvordan uret kan indstilles
+   - Tilføj funktion: Tekstbesked guide om hvordan uret kan indstilles i seriel monitoren
    - Tilføj funktion: Tid skal vises som hh:mm:ss i serial monitor
-
-
+   - Tilføj funktion: Opdatere med 1 sekunds interval
+   - Tilføj funktion: Uret skal kunne initialiseres med et starttidspunkt via serial monitor
+      - Tidspunktet der sendes skal både indeholde \n og \r som afsluttende karakterer
+      - Modtageren skal tjekke med if om den har modtaget \n\r før den initialisere tiden
+   - Tilføj funktion: Få Arduinoen til at vise "Aktuelt klokkeslæt er hh:mm:ss" i serial monitor
+   - Tilføj funktion: Ny tid indstilles ved tryk på knap sat til interrupt pin på Arduinoen
+   - Lav flowchart for main() der skal styre ur-programmet
+   - Programmer main() med UART.h og UART.c
+      - Vi skal kunne sende og modtage tekststreng der indeholder tid
+   - Test at det virker og dokumenter (DEADLINE 19. Marts)
 - Del 3: Indbyg interrupt, så arduino kan bruge energi på andet og ikke hele tiden fokusere på input
 
 Udarbejdning af dokumentationsrapport
