@@ -9,7 +9,6 @@
 #ifndef I2C_H_
 #define I2C_H_
 #define SCL_CLK 100000
-#define F_CPU 16000000UL
 
 char write_address;
 

@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>
+#include <avr/interrupt.h> // Nødvendig for ISR og sei()
 #include "I2C.h"
 #include "ssd1306.h"
 #include "UART.h"
@@ -8,55 +9,138 @@
 #define F_CPU 16000000UL
 #define BAUD 115200
 #define MYUBRRF (F_CPU / 8 / BAUD - 1)
+#define SET_INPUT(DDRx, BIT)  (DDRx &= ~(1 << BIT))
+#define SETBIT(ADDR, BIT) ((ADDR) |= (1 << (BIT))) // PINn
 
+// Globale variabler
+char buffer[17];    
+uint8_t pos = 0;
+uint8_t sekunder = 0, minutter = 0, timer = 0;
+char pre_c = 0; // Gemmer forrige tegn for at teste for \r\n
 
-// Funktion til at sende streng til seriel monitor (printer guide besked i starten)
+// Variabler til den "gemte" tid, som venter på at blive aktiveret
+uint8_t gemt_h = 0, gemt_m = 0, gemt_s = 0;
+volatile uint8_t knap_trykket = 0; 
+
+// Interrupt Service Routine for knappen på Pin 2 (INT4)
+ISR(INT4_vect) {
+    knap_trykket = 1; // Signalér at timeren skal initialiseres til den gemte tid
+}
+
+void Init() {
+    I2C_Init();
+    InitializeDisplay();
+    clear_display();
+    uart0_Init(MYUBRRF);
+
+    /* Knappe settings! */
+    SET_INPUT(DDRE, 4); // Button(2): PE4 sættes til input
+    SETBIT(PORTE, 4);    // Button(2): PE4 aktiveres intern pull-up
+
+    // Konfigurer INT4 til "Falling Edge" (når knappen trykkes ned mod stel)
+    EICRB |= (1 << ISC41);
+    EICRB &= ~(1 << ISC40);
+
+    // Aktiver External Interrupt Request 4
+    EIMSK |= (1 << INT4);
+
+    sei(); // Aktiver interrupts globalt
+}
+
 void printString(const char* s) {
     while (*s) {
         putchUSART0(*s++);
     }
 }
 
+void tjekUART() {
+    if (UCSR0A & (1 << RXC0)) {
+        char c = UDR0;
 
+        if (pre_c == '\r' && c == '\n') {
+            buffer[pos] = '\0';
+            
+            int h, m, s;
+            if (sscanf(buffer, "%d:%d:%d", &h, &m, &s) == 3) {
+                if (h < 24 && m < 60 && s < 60) {
+                    gemt_h = h;
+                    gemt_m = m;
+                    gemt_s = s;
+                    printString("\e[1;1H\e[K[Tid gemt! Tryk paa knap for at aktivere]");
+                } else {
+                    printString("\e[1;1H\e[K[Fejl: Ugyldige tal!]");
+                }
+            } 
+            // ELSE-blokken er fjernet herfra, så uret ikke bliver overskrevet af tekst
+            
+            pos = 0; 
+        } 
+        else if ((c == 0x08 || c == 0x7F) && pos > 0) {
+            pos--;
+            printString("\b \b");
+        }
+        else if (pos < 16 && c >= 32 && c <= 126) {
+            buffer[pos++] = c;
+            putchUSART0(c);
+        }
+        
+        pre_c = c;
+    }
+}
+
+void opdaterUr() {
+    static unsigned long sidste_tik = 0;
+    
+    // Hvis knappen er trykket, initialiserer vi timeren til den gemte tid
+    if (knap_trykket) {
+        timer = gemt_h;
+        minutter = gemt_m;
+        sekunder = gemt_s;
+        knap_trykket = 0; // Nulstil knap-flaget
+        printString("\e[1;1H\e[K[TIMER INITIALISERET!] Skriv ny tid for at koere i baggrunden");
+    }
+
+    if (sidste_tik > 400000) { 
+        char vis_buffer[40];
+        char gemt_buffer[40];
+        
+        // 1. Vis den nutidige timer i terminalen (Linje 2)
+        sprintf(vis_buffer, "\e[2;1H\e[K   Nu: %02d:%02d:%02d", timer, minutter, sekunder);
+        printString(vis_buffer);
+        
+        // 2. Vis den gemte tid i terminalen (Linje 3)
+        sprintf(gemt_buffer, "\e[3;1H\e[K   Gemt: %02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
+        printString(gemt_buffer);
+        
+        // OLED opdatering:
+        // Vi viser den aktive tid øverst (Række 2)
+        sendStrXY(vis_buffer + 10, 2, 2); 
+        // Vi viser den gemte tid nederst (Række 5) som en "preview"
+        char oled_gemt[20];
+        sprintf(oled_gemt, "Gemt: %02d:%02d:%02d", gemt_h, gemt_m, gemt_s);
+        sendStrXY(oled_gemt, 5, 1);
+
+        // Tæller den nuværende timer op
+        sekunder++;
+        if (sekunder >= 60) { sekunder = 0; minutter++; }
+        if (minutter >= 60) { minutter = 0; timer++; }
+        
+        sidste_tik = 0; 
+    }
+    
+    sidste_tik++; 
+}
 
 int main(void) {
-    char buffer[17];    // 16 chars + null terminator
-    uint8_t pos = 0;
-
-    I2C_Init();
-    InitializeDisplay();
-    clear_display();
-
-    uart0_Init(MYUBRRF);
+    Init(); 
     
-    printString("Guide: Tryk på arduino knap for at indstille tiden i seriel monitoren\r\n");
+    printString("\e[2J\e[H"); 
+    _delay_ms(10); 
+    
+    printString("Indtast tid (HH:MM:SS) for at gemme den. Tryk knap for at aktivere.\r\n");
 
     while (1) {
-        char c = getchUSART0(); // get char via UART
-
-        // terminere streng og læser til display når c er et Carriage Return \r eller Line Feed \n tegn
-        if (c == '\r' || c == '\n') { 
-            if (pos > 0) { 
-                buffer[pos] = '\0'; // Null-terminate the string
-                
-                clear_display();
-                sendStrXY(buffer, 0, 0);
-                
-                printString("\r\n[OLED Updated]\r\n");
-                
-                pos = 0;  // reset position til næste linje der skal skrives til Display
-            }
-        } 
-        // Fjerner backspace symbol fra strengen, hvis c er et backspace \b (ASCII 8 eller 127 både gammelt og nyt backspace tegn)
-        else if ((c == 0x08 || c == 0x7F) && pos > 0) {
-            pos--;  // tæller 1 tilbage på positionen
-            printString("\b \b"); // ryk skrivemarkør tilbage, print space, ryk skrivemarkør tilbage igen
-        }
-
-        // gemmer c i buffer array, hvis det opfylder specifikke kriterier
-        else if (pos < 16 && c >= 32 && c <= 126) { // godtager kun ASCII tegn som kan vises på display og begrænser pos til højest 15 tegn så displayet ikke flyder over med tegn
-            buffer[pos++] = c;  // gemmer 8-bit char c i buffer array og tilføjer 1 til int pos tæller
-            putchUSART0(c); // ekkoer tegn tilbage til serial monitoren, så vi kan se hvad vi skriver i den
-        }
+        tjekUART(); 
+        opdaterUr(); 
     }
 }

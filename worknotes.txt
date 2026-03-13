@@ -32,7 +32,7 @@ Arbejdsplan:
    - Tilføj funktion: Tid skal vises som hh:mm:ss i serial monitor
    - Tilføj funktion: Opdatere med 1 sekunds interval
    - Tilføj funktion: Uret skal kunne initialiseres med et starttidspunkt via serial monitor
-      - Tidspunktet der sendes skal både indeholde \n og \r som afsluttende karakterer
+      - Tidspunktet der sendes skal både indeholde \n og \r som afsluttende karakterer (Det som hedder CRLF i monitoren)
       - Modtageren skal tjekke med if om den har modtaget \n\r før den initialisere tiden
    - Tilføj funktion: Få Arduinoen til at vise "Aktuelt klokkeslæt er hh:mm:ss" i serial monitor
    - Tilføj funktion: Ny tid indstilles ved tryk på knap sat til interrupt pin på Arduinoen
