@@ -41,6 +41,11 @@ Arbejdsplan:
       - Vi skal kunne sende og modtage tekststreng der indeholder tid
    - Test at det virker og dokumenter (DEADLINE 19. Marts)
 - Del 3: Indbyg interrupt, så arduino kan bruge energi på andet og ikke hele tiden fokusere på input
+   - Tilføj funktion: Integreres interrupt på receive complete i UART
+   - Tilføj funktion: Enable interrupt på UART receive complete, så modtagelse af ny tid sker interruptstyret
+   - Tilføj funktion: Opdatering i initialiseringsfunktion, enable receive complete interrupt, indbyg service-rutine
+   - 
+   - 
 
 Udarbejdning af dokumentationsrapport
 - Forside
