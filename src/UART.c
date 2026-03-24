@@ -35,7 +35,7 @@ ISR(USART0_RX_vect) {
             rx_pos = 0;
         }
     } 
-    else if (rx_pos < 15) {
+    else if (rx_pos < 15) { // håndtere buffer overrun
         putchUSART0(c); // Echo tegnet tilbage til monitor, så vi kan se hvad vi skriver
         rx_buffer[rx_pos++] = c;    // gemmer i buffer
     }

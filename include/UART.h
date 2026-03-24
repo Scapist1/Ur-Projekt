@@ -9,6 +9,6 @@ extern volatile uint8_t ny_data_klar;
 
 void uart0_Init(unsigned int ubrr);
 void putchUSART0(char tx);
-void printString(const char* s); // Tilføjet
+void printString(const char* s);
 
 #endif

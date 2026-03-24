@@ -24,8 +24,10 @@ int main(void) {
     
     sei(); 
 
-    printString("\r\n--- UR SYSTEM KLAR ---\r\n");
-    printString("Format: tt:mm:ss (f.eks. 12:30:00)\r\n");
+    printString("\e[2J\e[H"); // Ryd monitor
+    printString("ur projekt\r\n");
+    printString("   [ skriv tid i format: tt:mm:ss (f.eks. 12:30:00) ]\r\n");
+    printString("       tid:\r\n");
 
     char display_str[20];
     char debug_msg[50];
@@ -53,6 +55,13 @@ int main(void) {
 
         sprintf(display_str, "Tid: %02d:%02d:%02d", hh, mm, ss);    // Display update
         sendStrXY(display_str, 4, 1);
+
+        printString("\e[s"); // Gem markør (Save position)
+        sprintf(display_str, "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
+        printString(display_str);
+        printString("\e[4;0H"); // det der skrives starter under uret
+        //printString("\e[u"); // Gå tilbage til markør (Unsave/Restore position)
+
         _delay_ms(1000);    // 1000 ms delay, må skulle optimeres, da denne løsning slet ikke giver et ur der er præcist
         ur();            // tæller 1 sek. frem på uret
     }
