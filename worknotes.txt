@@ -62,3 +62,7 @@ Udarbejdning af dokumentationsrapport
 - Test er viser, at systemet virker (tag billeder og indsæt med forklaring)
 - Konklusion
 
+
+
+- Uret køre konstant i while loopet
+- vi interrupter og indstiller tiden når 
