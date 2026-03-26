@@ -6,8 +6,7 @@
 #include "I2C.h"
 #include "ssd1306.h"
 #include "UART.h"
-
-volatile int hh = 0, mm = 0, ss = 0;
+#include "timer.h"
 
 void ur() {
     ss++;
@@ -21,8 +20,10 @@ int main(void) {
     InitializeDisplay();
     clear_display();
     uart0_Init(16); // 115200 baud
+    DDRB |= (1 << DDB7); // Sæt Pin 13 (LED) som output, bare for at have et visuelt timing output
     
-    sei(); 
+    timer1_init(); // starter hardware timeren
+    sei();  // aktivere interrupts
 
     printString("\e[2J\e[H"); // Ryd monitor
     printString("ur projekt\r\n");
@@ -33,34 +34,44 @@ int main(void) {
 
     while (1) {
         
-        // Tjek om der er modtaget data fra UART.c
-        if (ny_data_klar) {
-        int h, m, s;
-        int fundet = sscanf((char*)rx_buffer, "%d:%d:%d", &h, &m, &s);  // returnere med 3, hvis den successfuldt har fundet 3 heltal, hvis bufferen indeholder korrekt tidsformat
+        cli();  // pauser interrupts (atomic read)
+        uint16_t ms_copy = ms;  // læser 16 bit int fra global 
+        sei();  // starter interrupts 
 
-        if (fundet == 3) {  
-            if (h < 24 && m < 60 && s < 60) {   // hvis tallene passer inden for rammerne af et døgn, så indstilles tiden ellers fejlmelding
-                hh = h; mm = m; ss = s;
-                printString("\r\nOK: Tid indstillet!\r\n");
+        if  (ms_copy >= 1000) {
+            cli();
+            ms -= 1000;    // hvis vi trækker 1000 fra frem for at reset til 0, så risikere vi ikke at tabe tid
+            sei();
+            
+            ur();   // ss++ og logik til ss, mm, hh tæller
+            
+            PORTB ^= (1 << PORTB7); // XOR skifter bit 7 (Toggles LED) 
+
+            sprintf(display_str, "%02d:%02d:%02d", hh, mm, ss);    // Display update
+            sendStrXY(display_str, 4, 4);
+
+            printString("\e[s"); // Gem markør
+            sprintf(display_str, "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
+            printString(display_str);
+            printString("\e[5;0H"); // det der skrives starter under uret
+        }
+
+            // Tjek om der er modtaget data fra UART.c
+            if (ny_data_klar) {
+            int h, m, s;
+            int fundet = sscanf((char*)rx_buffer, "%d:%d:%d", &h, &m, &s);  // returnere med 3, hvis den successfuldt har fundet 3 heltal, hvis bufferen indeholder korrekt tidsformat
+
+            if (fundet == 3) {  
+                if (h < 24 && m < 60 && s < 60) {   // hvis tallene passer inden for rammerne af et døgn, så indstilles tiden ellers fejlmelding
+                    hh = h; mm = m; ss = s;
+                    printString("\r\nOK: Tid indstillet!\r\n");
+                } else {
+                    printString("\r\nFEJL: Ugyldige tal!\r\n");
+                }
             } else {
-                printString("\r\nFEJL: Ugyldige tal!\r\n");
+                printString("\r\nFEJL: Format skal være tt:mm:ss\r\n");
             }
-        } else {
-            printString("\r\nFEJL: Format skal være tt:mm:ss\r\n");
         }
-        _delay_ms(50); // Lille pause for at undgå bounce, især delay mellem /r og /n når man trykker enter i monitor er vigtigt
-        ny_data_klar = 0; 
-        }
-
-        sprintf(display_str, "%02d:%02d:%02d", hh, mm, ss);    // Display update
-        sendStrXY(display_str, 4, 4);
-
-        printString("\e[s"); // Gem markør
-        sprintf(display_str, "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
-        printString(display_str);
-        printString("\e[5;0H"); // det der skrives starter under uret
-
-        _delay_ms(1000);    // 1000 ms delay, må skulle optimeres, da denne løsning slet ikke giver et ur der er præcist
-        ur();            // tæller 1 sek. frem på uret
+        ny_data_klar = 0;       
     }
 }
