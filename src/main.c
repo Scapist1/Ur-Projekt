@@ -33,14 +33,14 @@ int main(void) {
     char display_str[20];
 
     while (1) {
-        
-        cli();  // pauser interrupts (atomic read)
-        uint16_t ms_copy = ms;  // læser 16 bit int fra global 
-        sei();  // starter interrupts 
 
-        if  (ms_copy >= 1000) {
+        if  (ss_flag) {
             cli();
             ms -= 1000;    // hvis vi trækker 1000 fra frem for at reset til 0, så risikere vi ikke at tabe tid
+
+            if (ms < 1000)  {
+                ss_flag = 0;
+            }
             sei();
             
             ur();   // ss++ og logik til ss, mm, hh tæller

@@ -12,6 +12,7 @@
 #define OCR_VALUE ((F_CPU / (PRESCALER * (1 / TARGET_INTERVAL))) - 1)   // OCR værdi: 249 ticks per millisekund (reset counter)
 
 extern volatile uint16_t ms; // gør variabler synlige uden at oprette igen
+extern volatile uint8_t ss_flag;
 extern uint8_t ss, mm, hh;
 
 void timer1_init(void); // prototype
