@@ -75,7 +75,7 @@ int main(void) {
         if (alarm_flag){
             static uint16_t blink_counter = 0; //static så den ikk bliver nulstillet hvert loop.
             //noget buzzer kode
-            printString("\r\nALARM!\r\n");
+            sendStrXY("ALARM!");
             blink_counter++;
             if (blink_counter < 500){
                 printString("\e[3;14H\e[K");
