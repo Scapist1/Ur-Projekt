@@ -16,6 +16,11 @@ void ur() {
     if (hh >= 24) { hh = 0; }
 }
 
+uint8_t a_ss = 0, a_mm = 0, a_hh = 0;
+int button_flag = 0;
+int alarm_flag = 0;
+
+
 //er det det her der skal i externInt?
 volatile uint8_t button_pressed = 0;
 ISR(INT4_vect) // Interrupt service routine til dér INT4_vectoren peger
@@ -37,6 +42,7 @@ int main(void) {
     printString("       tid:\r\n");
 
     char display_str[20];
+    char a_display_str[20];
 
     while (1) {
 
@@ -60,10 +66,44 @@ int main(void) {
             sprintf(display_str, "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
             printString(display_str);
             printString("\e[5;0H"); // det der skrives starter under uret
+
+            if (hh == a_hh && mm == a_mm && ss == a_ss){
+                alarm_flag = 1;
+            }
         }
-        if (button_pressed){
-            // Tjek om der er modtaget data fra UART.c
-            if (ny_data_klar) {
+
+        if (alarm_flag){
+            static uint16_t blink_counter = 0; //static så den ikk bliver nulstillet hvert loop.
+            //noget buzzer kode
+            printString("\r\nALARM!\r\n");
+            blink_counter++;
+            if (blink_counter < 500){
+                printString("\e[3;14H\e[K");
+            }
+            if (blink_counter >= 500){
+            printString(a_display_str);
+            }
+            if (blink_counter >= 1000){
+                blink_counter = 0;
+            }
+            if (button_flag){
+                alarm_flag = 0;
+                button_flag = 0;
+            }
+        }
+
+        if (button_pressed && !button_flag){
+            button_flag = 1;
+            button_pressed = 0;
+        }
+        if (button_pressed && button_flag)
+        {
+            button_flag = 0;
+            button_pressed = 0;
+        }
+        // Tjek om der er modtaget data fra UART.c
+        if (!button_flag && ny_data_klar)
+        {
             int h, m, s;
             int fundet = sscanf((char*)rx_buffer, "%d:%d:%d", &h, &m, &s);  // returnere med 3, hvis den successfuldt har fundet 3 heltal, hvis bufferen indeholder korrekt tidsformat
 
@@ -78,8 +118,33 @@ int main(void) {
                 printString("\r\nFEJL: Format skal være tt:mm:ss\r\n");
             }
         }
-    }
-        ny_data_klar = 0; 
-          
-    }
+
+        if (button_flag && ny_data_klar) //indstil alarm 
+        {
+            int h, m, s;
+            int fundet = sscanf((char *)rx_buffer, "%d:%d:%d", &h, &m, &s); // returnere med 3, hvis den successfuldt har fundet 3 heltal, hvis bufferen indeholder korrekt tidsformat
+
+            if (fundet == 3)
+            {
+                if (h < 24 && m < 60 && s < 60)
+                { // hvis tallene passer inden for rammerne af et døgn, så indstilles alarmtiden ellers fejlmelding
+                    a_hh = h;
+                    a_mm = m;
+                    a_ss = s;
+                    printString("\r\nAlarm indstillet!\r\n");
+                    sprintf(a_display_str, "\e[7;14H\e[K%02d:%02d:%02d", a_hh, a_mm, a_ss); //gemmer en string med klokkeslettet
+                    printString(a_display_str);
+                }
+                else
+                {
+                    printString("\r\nFEJL, alarm: Ugyldige tal!\r\n");
+                }
+            }
+            else
+            {
+                printString("\r\nFEJL, alarm: Format skal være tt:mm:ss\r\n");
+            }
+        }
+            ny_data_klar = 0;
+        }
 }
