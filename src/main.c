@@ -8,6 +8,7 @@
 #include "UART.h"
 #include "timer.h"
 #include "utils.h"
+#include "externInt.h"
 
 void ur() {
     ss++;
@@ -20,16 +21,9 @@ uint8_t a_ss = 0, a_mm = 0, a_hh = 0;
 int button_flag = 0;
 int alarm_flag = 0;
 
-
-//er det det her der skal i externInt?
-volatile uint8_t button_pressed = 0;
-ISR(INT4_vect) // Interrupt service routine til dér INT4_vectoren peger
-{
-    button_pressed = 1;
-}
-
 int main(void) {
-    button_init(); // init button, enabler interrupts (sei)
+    button_init(); // init button
+    extint4_init();
     display_init(); 
     uart0_Init(16); // 115200 baud
     DDRB |= (1 << DDB7); // Sæt Pin 13 (LED) som output, bare for at have et visuelt timing output
@@ -41,9 +35,12 @@ int main(void) {
     printString("   [ skriv ny tid ind i formatet: tt:mm:ss (f.eks. 12:30:00) ]\r\n");
     printString("       tid:\r\n");
 
-    char display_str[20];
-    char a_display_str[20];
+    char display_str[21];
+    char a_display_str[21];
+    snprintf(a_display_str, sizeof(a_display_str), "%02d:%02d:%02d", a_hh, a_mm, a_ss); //undgå overflow
 
+    sei(); //enabler interrupts
+    
     while (1) {
 
         if  (ss_flag) {
@@ -59,11 +56,11 @@ int main(void) {
             
             PORTB ^= (1 << PORTB7); // XOR skifter bit 7 (Toggles LED) 
 
-            sprintf(display_str, "%02d:%02d:%02d", hh, mm, ss);    // Display update
+            snprintf(display_str, sizeof(display_str), "%02d:%02d:%02d", hh, mm, ss);    // Display update
             sendStrXY(display_str, 4, 4);
 
             printString("\e[s"); // Gem markør
-            sprintf(display_str, "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
+            snprintf(display_str, sizeof(display_str), "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
             printString(display_str);
             printString("\e[5;0H"); // det der skrives starter under uret
 
@@ -75,13 +72,13 @@ int main(void) {
         if (alarm_flag){
             static uint16_t blink_counter = 0; //static så den ikk bliver nulstillet hvert loop.
             //noget buzzer kode
-            sendStrXY("ALARM!");
+            sendStrXY("ALARM!", 4, 6);
             blink_counter++;
             if (blink_counter < 500){
-                printString("\e[3;14H\e[K");
+                sendStrXY(a_display_str, 2, 7);
             }
             if (blink_counter >= 500){
-            printString(a_display_str);
+                sendStrXY("                     ", 2, 7); //clear display
             }
             if (blink_counter >= 1000){
                 blink_counter = 0;
@@ -108,7 +105,7 @@ int main(void) {
             int fundet = sscanf((char*)rx_buffer, "%d:%d:%d", &h, &m, &s);  // returnere med 3, hvis den successfuldt har fundet 3 heltal, hvis bufferen indeholder korrekt tidsformat
 
             if (fundet == 3) {  
-                if (h < 24 && m < 60 && s < 60) {   // hvis tallene passer inden for rammerne af et døgn, så indstilles tiden ellers fejlmelding
+                if (h < 24 && h >= 0 && m < 60 && m >= 0 && s < 60 && s >= 0) {   // hvis tallene passer inden for rammerne af et døgn, så indstilles tiden ellers fejlmelding
                     hh = h; mm = m; ss = s;
                     printString("\r\nOK: Tid indstillet!\r\n");
                 } else {
@@ -126,13 +123,13 @@ int main(void) {
 
             if (fundet == 3)
             {
-                if (h < 24 && m < 60 && s < 60)
+                if (h < 24 && h >= 0 && m < 60 && m >= 0 && s < 60 && s >= 0)
                 { // hvis tallene passer inden for rammerne af et døgn, så indstilles alarmtiden ellers fejlmelding
                     a_hh = h;
                     a_mm = m;
                     a_ss = s;
                     printString("\r\nAlarm indstillet!\r\n");
-                    sprintf(a_display_str, "\e[7;14H\e[K%02d:%02d:%02d", a_hh, a_mm, a_ss); //gemmer en string med klokkeslettet
+                    snprintf(a_display_str, sizeof(a_display_str), "\e[7;14H\e[K%02d:%02d:%02d", a_hh, a_mm, a_ss); //gemmer en string med klokkeslettet
                     printString(a_display_str);
                 }
                 else

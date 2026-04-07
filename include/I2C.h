@@ -10,12 +10,9 @@
 #define I2C_H_
 #define SCL_CLK 100000
 
-char write_address;
-
 #include <util/delay.h>
 
 #define BITRATE(TWSR)	((F_CPU/SCL_CLK)-16)/(2*pow(4,(TWSR&((1<<TWPS0)|(1<<TWPS1)))))
-char read_addres;
 
 void I2C_Init()	;
 uint8_t I2C_Start(char write_address);/* I2C start function */

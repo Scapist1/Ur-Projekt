@@ -9,6 +9,9 @@
   *both data sheets are at git hub in this project
  */ 
 
+#ifndef SSD1306_H_
+#define SSD1306_H_
+
 #include <stdbool.h>
 
   #define SSD1306_128_64
@@ -77,7 +80,7 @@
 #define INVERSE 2
 
 typedef uint8_t bitmap_t[8][128];
-uint8_t _i2c_address;
+extern uint8_t _i2c_address; //lige prøvet at lave extern så vi ikk får kopier... Altså men det er jo ikke os der har skrevet den her kode så virker lidt risky at ændre hehe
 void  InitializeDisplay();
 void sendStrXY( char *string, int X, int Y);
 void sendStr( char *string);
@@ -106,3 +109,4 @@ void dim(bool dim);
 void print_fonts();
 void drawPixel(int16_t x, int16_t y, uint16_t color);
 
+#endif
