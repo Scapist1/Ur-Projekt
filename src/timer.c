@@ -9,7 +9,7 @@ uint8_t ss = 0, mm = 0, hh = 0;
 void timer1_init() {
     TCCR1B |= (1 << WGM12);     // Timer 1, mode 4: CTC mode (reset timer ved bestemt værdi, så vi kan synkronisere timer med et sekund f.eks.)
     
-    OCR1A = OCR_VALUE;          // compileren udregner  og indstiller at timer skal reset hvert 249 ticks (ms)
+    OCR1A = OCR_VALUE;          // compileren udregner  og indstiller at timer skal reset hvert 249. ticks (ms)
     
     TIMSK1 |= (1 << OCIE1A);    // Giver timeren lov til at afbryde CPU'en, når den rammer værdien i OCR1A.
     TCCR1B |= (1 << CS11) | (1 << CS10); // Prescaler 64

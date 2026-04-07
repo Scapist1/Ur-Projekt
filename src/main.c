@@ -16,16 +16,22 @@ void ur() {
     if (hh >= 24) { hh = 0; }
 }
 
+//er det det her der skal i externInt?
+volatile uint8_t button_pressed = 0;
+ISR(INT4_vect) // Interrupt service routine til dér INT4_vectoren peger
+{
+    button_pressed = 1;
+}
+
 int main(void) {
-    button_init();
-    display_init();
+    button_init(); // init button, enabler interrupts (sei)
+    display_init(); 
     uart0_Init(16); // 115200 baud
     DDRB |= (1 << DDB7); // Sæt Pin 13 (LED) som output, bare for at have et visuelt timing output
     
     timer1_init(); // starter hardware timeren
-    sei();  // aktivere interrupts
 
-    printString("\e[2J\e[H"); // Ryd monitor
+    printString("\e[2J\e[H"); // ryd skærmen: escape karakter, clear screen ("[2J"), ryk cursor tilbage i venstre top hjørne ("[H")
     printString("ur projekt\r\n");
     printString("   [ skriv ny tid ind i formatet: tt:mm:ss (f.eks. 12:30:00) ]\r\n");
     printString("       tid:\r\n");
@@ -55,7 +61,7 @@ int main(void) {
             printString(display_str);
             printString("\e[5;0H"); // det der skrives starter under uret
         }
-
+        if (button_pressed){
             // Tjek om der er modtaget data fra UART.c
             if (ny_data_klar) {
             int h, m, s;
@@ -72,6 +78,8 @@ int main(void) {
                 printString("\r\nFEJL: Format skal være tt:mm:ss\r\n");
             }
         }
-        ny_data_klar = 0;       
+    }
+        ny_data_klar = 0; 
+          
     }
 }
