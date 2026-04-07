@@ -33,19 +33,19 @@ void DIP_init()
     PORTK |= 0xFF;       // sætter pullup på dip-switch
 }
 
-//void button_init()
-//{
-//    DDRE &= ~(1 << PE4);// input
-//    PORTE |= (1 << PE4); // aktiv lav
-//    DDRB |= (1 << DDB7); // sætter LED pin til output
-//
-//    EICRB |= (1 << ISC41); // 1, 0 for falling edge som jeg tænker vores knap må være
-//    EICRB &= ~(1 << ISC40); 
-//
-//    EIMSK |= (1 << INT4); // Enable INT4
-//
-//    sei(); // globale interrupts
-//}
+void button_init()
+{
+    DDRE &= ~(1 << PE4);// input
+    PORTE |= (1 << PE4); // aktiv lav
+    DDRB |= (1 << DDB7); // sætter LED pin til output
+
+    EICRB |= (1 << ISC41); // 1, 0 for falling edge som jeg tænker vores knap må være
+    EICRB &= ~(1 << ISC40); 
+
+    EIMSK |= (1 << INT4); // Enable INT4
+
+    sei(); // globale interrupts
+}
 
 //void button_init_old(void) //fra da vi pollede
 //{

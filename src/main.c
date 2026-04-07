@@ -7,6 +7,7 @@
 #include "ssd1306.h"
 #include "UART.h"
 #include "timer.h"
+#include "utils.h"
 
 void ur() {
     ss++;
@@ -16,9 +17,8 @@ void ur() {
 }
 
 int main(void) {
-    I2C_Init();
-    InitializeDisplay();
-    clear_display();
+    button_init();
+    display_init();
     uart0_Init(16); // 115200 baud
     DDRB |= (1 << DDB7); // Sæt Pin 13 (LED) som output, bare for at have et visuelt timing output
     
@@ -35,13 +35,13 @@ int main(void) {
     while (1) {
 
         if  (ss_flag) {
-            cli();
+            cli(); //disabler interrupts kort så ikk vi ved uheld kører et interrupt midt i 16 bit tallet (læses ad 2x8bit)
             ms -= 1000;    // hvis vi trækker 1000 fra frem for at reset til 0, så risikere vi ikke at tabe tid
 
             if (ms < 1000)  {
                 ss_flag = 0;
             }
-            sei();
+            sei(); //enabler interrupts igen
             
             ur();   // ss++ og logik til ss, mm, hh tæller
             
