@@ -1,0 +1,100 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity calc_data is
+      Port(
+      Clk: in std_logic;
+      Reset: in std_logic;
+      Start: in std_logic;
+      OpCode: in std_logic_vector(1 downto 0); -- vi vurderede at vi kun har brug for 2 bit
+      In1: in std_logic_vector(7 downto 0); --så bit 7 er MSB, synes det er lidt mere logisk?
+      In2: in std_logic_vector(7 downto 0);
+      
+      Done: out std_logic;
+      CalcVal: out std_logic_vector(15 downto 0) 
+      );
+end calc_data;
+
+architecture Behavioral of calc_data is
+      type StateType is (IDLE, CALC, DIV, DONE_S);
+      signal state : StateType := IDLE; -- sætter til IDLE som default
+      
+      signal result: unsigned(15 downto 0); -- som register til at gemme resultatet
+      signal a, b: unsigned(7 downto 0); -- samme bare til mellemregninger, unsigned så vi kan bruge operators på det.
+      -- switches kan vel ikke være negative? Ikke som det er sat op nu i hvert fald uden 2s komplement, så vi har ikke brug for signed.
+      
+      signal rest: unsigned(7 downto 0);
+      signal kvotient: unsigned(7 downto 0);
+      signal divisor: unsigned(7 downto 0);
+      
+begin
+      datapath: process(Reset, clk)
+      begin
+            if Reset = '1' then --asynkront reset
+                  state <= IDLE;
+                  rest <= (others => '0');
+                  kvotient <= (others => '0');
+                  divisor <= (others => '0'); -- sætter alle bits til 0
+                  a <= (others => '0');
+                  b <= (others => '0');
+                  done <= '0'; --default
+                  
+            elsif rising_edge(clk) then
+                  done <= '0'; --default
+                  
+                  case state is
+                        when IDLE =>
+                              if Start = '1' then
+                                    a <= unsigned(In1);
+                                    b <= unsigned(In2);
+                                    state <= CALC;
+                              end if;
+                              
+                        when CALC =>
+                              case opcode is
+                                    when "00" => -- plus (+)
+                                          result <= resize(a, 16) + resize(b, 16); --resize(x, 16) er ligesom "00000000" & x (hvis x er 8bit altså)
+                                          state <= DONE_S;
+                                    when "01" => -- minus (-)
+                                          result <= resize(a, 16) - resize(b, 16);
+                                          state <= DONE_S;
+                                    when "10" => -- gange (*)
+                                          result <= resize(a, 16) * resize(b, 16); 
+                                          state <= DONE_S;
+                                    when "11" => -- divider (/) tager mere end et clk
+                                          rest <= a; -- indlæser
+                                          divisor <= b;
+                                          kvotient <= (others => '0'); 
+                                          state <= DIV;
+                                    when others => -- får syntax vrøvl ellers
+                                          state <= IDLE;
+                              end case;
+                        when DIV =>
+                              if divisor = 0 then
+                                    result <= (others => '0'); --prøver at undgå at fucke os selv op
+                                    state <= DONE_S;
+                              elsif rest >= divisor then
+                                    rest <= rest - divisor;
+                                    kvotient <= kvotient + 1;
+                              else 
+                                    result <= resize(kvotient, 16);
+                                    state <= DONE_S;
+                              end if;
+                        when DONE_S =>
+                              CalcVal <= std_logic_vector(result);
+                              Done <= '1';
+                              State <= IDLE;
+                  end case;
+            end if;
+      end process;                              
+
+end Behavioral;

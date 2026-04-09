@@ -1,0 +1,100 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Calc_Data is
+    Port (
+        Reset   : in  STD_LOGIC; 
+        Clk     : in  STD_LOGIC;
+        Start   : in  STD_LOGIC;
+        Done    : out STD_LOGIC;
+        OpCode  : in  STD_LOGIC_VECTOR (1 downto 0);
+        In1     : in  STD_LOGIC_VECTOR (7 downto 0);
+        In2     : in  STD_LOGIC_VECTOR (7 downto 0);
+        CalcVal : out STD_LOGIC_VECTOR (15 downto 0)
+    );
+end Calc_Data;
+
+architecture Behavioral of Calc_Data is
+    
+	 -- Sequantial division states
+	 type state_type is (IDLE, DIVIDE, FINISH);
+	 signal state : state_type := IDLE;
+	 
+	 -- Registers for division algorithm
+	 signal reg_A			:	unsigned(7 downto 0); -- accumulator, samler de midlertidige værdier undervejs, som et rest register
+	 signal reg_Q			:	unsigned(7 downto 0); -- starter med dividend og slutter med quotient
+	 signal reg_M			:	unsigned(7 downto 0); -- indeholder divisor, hedder M fordi samme registekan bruges til multiplikation
+	 signal count			:	integer range 0 to 8; 	 
+	 signal OpResult 		: 	unsigned(15 downto 0) := X"0000";
+
+begin
+
+    process(Clk, Reset)
+    begin
+        if Reset = '1' then
+            state <= IDLE;
+				OpResult <= X"0000";
+            Done <= '0';
+				CalcVal <= X"0000";
+        elsif rising_edge(Clk) then
+            case state is
+					when IDLE =>
+						Done <= '0';      
+						if Start = '1' then
+							 case OpCode is
+								  when "01" => -- Addition
+										OpResult <= resize(unsigned(In1) + unsigned(In2), 16);
+										Done <= '1';
+										
+								  when "10" => -- Subtraktion
+										OpResult <= resize(unsigned(In1) - unsigned(In2), 16);
+										Done <= '1';
+										
+								  when "11" => -- Multiplikation
+										OpResult <= unsigned(In1) * unsigned(In2);
+										Done <= '1';
+										
+								  when "00" => -- Division
+										reg_Q <= unsigned(In1); -- Dividend
+										reg_M <= unsigned(In2); -- Divisor
+										reg_A <= X"00";
+										count <= 8;
+										state <= DIVIDE;
+										
+									when others =>
+										state <= IDLE;
+										
+								end case;
+							end if;
+							
+					when DIVIDE =>
+						
+                        if (reg_A(6 downto 0) & reg_Q(7)) >= reg_M then 
+                            -- 1. Det gik op! Træk M fra og sæt Q(0) = '1'
+                            reg_A <= (reg_A(6 downto 0) & reg_Q(7)) - reg_M;
+                            reg_Q <= (reg_Q(6 downto 0) & '1');
+                        else
+                            -- 2. Det gik IKKE op! 
+                            -- Vi skal stadig "rykke" en bit fra Q til A for at gøre klar til næste omgang
+                            reg_A <= (reg_A(6 downto 0) & reg_Q(7)); -- A opdateres med den nye bit fra Q
+                            reg_Q <= (reg_Q(6 downto 0) & '0');      -- Vi sætter et '0' i kvotienten
+                        end if;
+						
+						if count = 1 then
+							state <= FINISH;
+						else
+							count <= count - 1;
+						end if;
+						
+					when FINISH =>
+						if OpCode = "00" then
+							OpResult <= resize(reg_Q, 16); 
+						end if;
+						Done <= '1';
+						state <= IDLE;
+						
+					end case;
+				end if;
+			end process;
+	end Behavioral;
