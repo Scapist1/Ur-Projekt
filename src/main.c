@@ -37,16 +37,24 @@ int main(void) {
 
     char display_str[21];
     char a_display_str[21];
-    snprintf(a_display_str, sizeof(a_display_str), "%02d:%02d:%02d", a_hh, a_mm, a_ss); //undgå overflow
+    char a_flag_str[10];
+    char b_flag_str[10];
+    char b_press_str[10];
+    snprintf(a_display_str, sizeof(a_display_str), "%02d:%02d:%02d", a_hh, a_mm, a_ss); // undgå overflow
 
     sei(); //enabler interrupts
     
     while (1) {
+        //sprintf(a_flag_str, "A-Flag: %d", alarm_flag);
+        sprintf(b_flag_str, "%d", button_flag);
+       // sprintf(b_press_str, "B-press: %d", button_pressed);
+       // sendStrXY(a_flag_str, 0, 0);
+        sendStrXY(b_flag_str, 6, 15);
+       // sendStrXY(b_press_str, 2, 0);
 
         if  (ss_flag) {
             cli(); //disabler interrupts kort så ikk vi ved uheld kører et interrupt midt i 16 bit tallet (læses ad 2x8bit)
             ms -= 1000;    // hvis vi trækker 1000 fra frem for at reset til 0, så risikere vi ikke at tabe tid
-
             if (ms < 1000)  {
                 ss_flag = 0;
             }
@@ -57,7 +65,7 @@ int main(void) {
             PORTB ^= (1 << PORTB7); // XOR skifter bit 7 (Toggles LED) 
 
             snprintf(display_str, sizeof(display_str), "%02d:%02d:%02d", hh, mm, ss);    // Display update
-            sendStrXY(display_str, 4, 4);
+            sendStrXY(display_str, 5, 4);
 
             printString("\e[s"); // Gem markør
             snprintf(display_str, sizeof(display_str), "\e[3;14H\e[K%02d:%02d:%02d", hh, mm, ss);
@@ -72,31 +80,30 @@ int main(void) {
         if (alarm_flag){
             static uint16_t blink_counter = 0; //static så den ikk bliver nulstillet hvert loop.
             //noget buzzer kode
-            sendStrXY("ALARM!", 4, 6);
-            blink_counter++;
-            if (blink_counter < 500){
-                sendStrXY(a_display_str, 2, 7);
+            sendStrXY("ALARM!", 1, 5);
+            if (ms < 500){
+                sendStrXY(a_display_str, 2, 4);
             }
-            if (blink_counter >= 500){
-                sendStrXY("                     ", 2, 7); //clear display
+            if (ms >= 500){
+                sendStrXY("                     ", 2, 0); //clear display
             }
-            if (blink_counter >= 1000){
-                blink_counter = 0;
-            }
-            if (button_flag){
+            if (button_pressed){
                 alarm_flag = 0;
-                button_flag = 0;
+                sendStrXY("             ", 1, 6);
+                sendStrXY("                     ", 2, 0);
             }
         }
 
         if (button_pressed && !button_flag){
             button_flag = 1;
             button_pressed = 0;
+            _delay_ms(200);
         }
         if (button_pressed && button_flag)
         {
             button_flag = 0;
             button_pressed = 0;
+            _delay_ms(200);
         }
         // Tjek om der er modtaget data fra UART.c
         if (!button_flag && ny_data_klar)
@@ -129,7 +136,7 @@ int main(void) {
                     a_mm = m;
                     a_ss = s;
                     printString("\r\nAlarm indstillet!\r\n");
-                    snprintf(a_display_str, sizeof(a_display_str), "\e[7;14H\e[K%02d:%02d:%02d", a_hh, a_mm, a_ss); //gemmer en string med klokkeslettet
+                    snprintf(a_display_str, sizeof(a_display_str), "%02d:%02d:%02d", a_hh, a_mm, a_ss); //gemmer en string med klokkeslettet
                     printString(a_display_str);
                 }
                 else
