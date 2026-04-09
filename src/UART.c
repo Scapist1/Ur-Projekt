@@ -6,11 +6,11 @@ volatile uint8_t rx_pos = 0;
 volatile uint8_t ny_data_klar = 0;  // flag der fortæller main om den skal læse ny data
 
 void uart0_Init(unsigned int ubrr) {
-    UBRR0H = (unsigned char)(ubrr >> 8);
-    UBRR0L = (unsigned char)ubrr;
-    UCSR0A = (1 << U2X0); 
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0); 
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); 
+    UBRR0H = (unsigned char)(ubrr >> 8); //baud rate High
+    UBRR0L = (unsigned char)ubrr; //baud rate Low
+    UCSR0A = (1 << U2X0); // double rate
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0); //enable TX, RX og RXC interrupt
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00); // 
 }
 
 void putchUSART0(char tx) {
