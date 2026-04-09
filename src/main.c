@@ -17,6 +17,8 @@ void ur() {
     if (hh >= 24) { hh = 0; }
 }
 
+
+
 uint8_t a_ss = 0, a_mm = 0, a_hh = 0;
 int button_flag = 0;
 int alarm_flag = 0;
@@ -27,7 +29,8 @@ int main(void) {
     display_init(); 
     uart0_Init(16); // 115200 baud
     DDRB |= (1 << DDB7); // Sæt Pin 13 (LED) som output, bare for at have et visuelt timing output
-    
+    DDRB |= (1 << DDB6);
+
     timer1_init(); // starter hardware timeren
 
     printString("\e[2J\e[H"); // ryd skærmen: escape karakter, clear screen ("[2J"), ryk cursor tilbage i venstre top hjørne ("[H")
@@ -79,17 +82,18 @@ int main(void) {
 
         if (alarm_flag){
             static uint16_t blink_counter = 0; //static så den ikk bliver nulstillet hvert loop.
-            //noget buzzer kode
             sendStrXY("ALARM!", 1, 5);
             if (ms < 500){
                 sendStrXY(a_display_str, 2, 4);
+                PORTB ^= (1 << PB6);
             }
             if (ms >= 500){
                 sendStrXY("                     ", 2, 0); //clear display
+                PORTB ^= (1 << PB6);
             }
             if (button_pressed){
                 alarm_flag = 0;
-                sendStrXY("             ", 1, 6);
+                sendStrXY("             ", 1, 5);
                 sendStrXY("                     ", 2, 0);
             }
         }
