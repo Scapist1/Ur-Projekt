@@ -40,9 +40,7 @@ int main(void) {
 
     char display_str[21];
     char a_display_str[21];
-    char a_flag_str[10];
     char b_flag_str[10];
-    char b_press_str[10];
     snprintf(a_display_str, sizeof(a_display_str), "%02d:%02d:%02d", a_hh, a_mm, a_ss); // undgå overflow
 
     sei(); //enabler interrupts
@@ -81,20 +79,20 @@ int main(void) {
         }
 
         if (alarm_flag){
-            static uint16_t blink_counter = 0; //static så den ikk bliver nulstillet hvert loop.
             sendStrXY("ALARM!", 1, 5);
             if (ms < 500){
                 sendStrXY(a_display_str, 2, 4);
-                PORTB ^= (1 << PB6);
+                PORTB |= (1 << PB6);
             }
             if (ms >= 500){
                 sendStrXY("                     ", 2, 0); //clear display
-                PORTB ^= (1 << PB6);
+                PORTB &= ~(1 << PB6);
             }
             if (button_pressed){
                 alarm_flag = 0;
                 sendStrXY("             ", 1, 5);
                 sendStrXY("                     ", 2, 0);
+                PORTB &= ~(1 << PB6);
             }
         }
 
