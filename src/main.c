@@ -27,7 +27,7 @@ int main(void) {
     button_init(); // init button
     extint4_init();
     display_init(); 
-    uart0_Init(16); // 115200 baud
+    uart0_Init(103); // 19200 baud
     DDRB |= (1 << DDB7); // Sæt Pin 13 (LED) som output, bare for at have et visuelt timing output
     DDRB |= (1 << DDB6);
 
